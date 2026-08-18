@@ -1,0 +1,61 @@
+# Acceptance Criteria — AI Insight
+
+<!--
+  Output: Planning Agent (Fase 02). Kontrak uji untuk Implementation & Reviewer. VERIFIABLE.
+-->
+
+```
+Unit  : AI Insight
+Level : module
+```
+
+## Kriteria fungsional
+G1.
+  GIVEN `PERFORMANCE_SCORE` + metrik tersedia untuk seorang talent/periode
+  WHEN  admin/analyst memanggil `POST /insights/generate`
+  THEN  sebuah job async terjadwal (`{ jobId }`) dan menghasilkan `INSIGHT` berisi diagnosis, narrative, dan recommendations.
+
+G2.
+  GIVEN sebuah `INSIGHT` ter-generate
+  WHEN  diperiksa
+  THEN  ia memuat `source_refs` (talent_id, periode, metrik/skor dirujuk) dan **tidak ada angka/klaim** tanpa sumber.
+
+G3.
+  GIVEN model menghasilkan output yang tidak sesuai JSON schema atau memuat klaim numerik tanpa source_ref valid
+  WHEN  validator pasca-generasi berjalan
+  THEN  output ditolak (tidak disimpan sebagai insight valid) dan kegagalan tercatat.
+
+G4.
+  GIVEN sebuah `INSIGHT` baru dibuat
+  WHEN  status awalnya diperiksa
+  THEN  bernilai `generated` (bukan approved/published) dan belum dapat dipakai client-facing.
+
+G5.
+  GIVEN insight ter-generate
+  WHEN  metadata diperiksa
+  THEN  `model_id` yang dipakai tercatat.
+
+G6.
+  GIVEN seorang talent tidak-skorable / data tidak memadai
+  WHEN  generasi dijalankan
+  THEN  insight tidak dibuat (atau ditandai "data tidak memadai"), bukan menebak.
+
+## Kriteria non-fungsional
+- Generasi berjalan async (tidak memblok request) dan mendukung batch banyak talent per periode.
+- Prefix prompt stabil dapat di-cache; model dirutekan sesuai tugas (batch vs signature).
+
+## Kriteria keamanan
+- API key Anthropic hanya dari secret manager; tidak pernah di prompt/log/report.
+- Konteks model meminimalkan PII (agregat, bukan PII mentah berlebih).
+- `POST /insights/generate` dibatasi RBAC (admin/analyst); pemicuan tercatat di audit.
+- Tidak ada insight client-facing tanpa approval manusia (status `generated` → approval-workflow).
+
+## Definition of Done
+- [ ] Semua kriteria fungsional di atas hijau
+- [ ] Lint & type-check lolos
+- [ ] Security scan lolos
+- [ ] Tidak ada secret di kode
+- [ ] Spec diperbarui jika implementasi menyimpang
+
+---
+*Nafanesia — Template Acceptance v1.0*

@@ -1,0 +1,62 @@
+# Acceptance Criteria — Data Integration
+
+<!--
+  Output: Planning Agent (Fase 02). Kontrak uji untuk Implementation & Reviewer. VERIFIABLE.
+-->
+
+```
+Unit  : Data Integration
+Level : module
+```
+
+## Kriteria fungsional
+G1.
+  GIVEN sumber Sheet/Jira/Clockify dapat diakses untuk periode `YYYY-MM`
+  WHEN  admin memanggil `POST /ingestion/runs` dengan `{ source, period }`
+  THEN  sebuah `INGESTION_RUN` terbuat, data ter-normalisasi tersimpan, dan status akhir `success` (atau `partial` bila sebagian gagal).
+
+G2.
+  GIVEN sebuah `(source, period)` sudah pernah berhasil di-ingest
+  WHEN  ingestion dijalankan ulang untuk `(source, period)` yang sama
+  THEN  tidak ada record terduplikasi (upsert idempoten) dan run lama ditandai superseded.
+
+G3.
+  GIVEN satu sumber gagal (mis. Jira error/rate-limited)
+  WHEN  ingestion periode berjalan untuk ketiga sumber
+  THEN  sumber lain tetap tersimpan dan run yang gagal berstatus `failed`/`partial` tanpa merusak data sumber lain.
+
+G4.
+  GIVEN data mentah mengandung anomali (talent tanpa identitas mappable, jam nol/ekstrem, tiket tanpa assignee)
+  WHEN  ingestion selesai
+  THEN  `DATA_QUALITY_FLAG` dengan severity yang sesuai (`info|warn|block`) tercatat dan terlihat di `GET /ingestion/runs/{id}`.
+
+G5.
+  GIVEN ingestion berjalan
+  WHEN  adapter mengakses sumber eksternal
+  THEN  hanya operasi baca yang dilakukan (tidak ada write-back ke Jira/Clockify/Sheet).
+
+G6.
+  GIVEN seorang non-admin
+  WHEN  ia memanggil `POST /ingestion/runs`
+  THEN  ditolak dengan 403.
+
+## Kriteria non-fungsional
+- Run menghormati rate limit sumber (paginasi/throttle) tanpa gagal total.
+- Retry dengan backoff aktif untuk kegagalan transien; jumlah percobaan terbatas & tercatat.
+- Ingestion satu periode untuk skala ratusan talent selesai dalam waktu wajar (target disepakati saat build).
+
+## Kriteria keamanan
+- Credential sumber hanya diambil dari secret manager/env; tidak ada secret di DB/log/report.
+- Tidak ada PII mentah talent yang bocor ke log; pesan error tidak memuat nilai sensitif.
+- CSV master lokal tidak ditarik ke repo maupun pipeline production.
+- Trigger ingestion & akses data tercatat di audit log (via platform-compliance).
+
+## Definition of Done
+- [ ] Semua kriteria fungsional di atas hijau
+- [ ] Lint & type-check lolos
+- [ ] Security scan lolos
+- [ ] Tidak ada secret di kode
+- [ ] Spec diperbarui jika implementasi menyimpang
+
+---
+*Nafanesia — Template Acceptance v1.0*

@@ -1,0 +1,164 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ------------------------------------------------------------------ *
+ * Hitopia Monitoring — design tokens
+ * Editorial-analytical: warm paper, ink, petrol accent, muted flags.
+ * ------------------------------------------------------------------ */
+:root {
+  --paper: #f6f4ee;
+  --surface: #fbfaf6;
+  --raised: #ffffff;
+
+  --ink: #1b1a16;
+  --ink-soft: #3a382f;
+  --ink-muted: #6f6c5f;
+  --ink-faint: #9a9788;
+
+  --line: #e4e0d4;
+  --line-strong: #d3cebd;
+
+  --accent: #0e6b63; /* deep petrol/teal */
+  --accent-soft: #e2efed;
+  --accent-ink: #0a4f49;
+
+  --low: #a8362f; /* muted brick */
+  --low-soft: #f5e3df;
+  --review: #9a6a12; /* ochre */
+  --review-soft: #f6ecd6;
+  --healthy: #2f6b4f; /* moss */
+  --healthy-soft: #e0eee5;
+  --neutralf: #5b5747;
+  --neutralf-soft: #ece9dd;
+}
+
+* {
+  border-color: var(--line);
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  background-color: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-sans), system-ui, sans-serif;
+  font-feature-settings: "ss01", "cv01", "tnum";
+  /* subtle paper grain */
+  background-image: radial-gradient(
+    transparent 0,
+    transparent 1px,
+    rgba(27, 26, 22, 0.012) 1px
+  );
+  background-size: 3px 3px;
+}
+
+::selection {
+  background: var(--accent);
+  color: #fff;
+}
+
+/* thin, editorial scrollbars */
+::-webkit-scrollbar {
+  width: 11px;
+  height: 11px;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--line-strong);
+  border: 3px solid var(--paper);
+  border-radius: 999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--ink-faint);
+}
+
+/* ---------- typographic helpers ---------- */
+.font-display {
+  font-family: var(--font-display), Georgia, serif;
+}
+.tnum {
+  font-variant-numeric: tabular-nums;
+}
+.eyebrow {
+  font-family: var(--font-mono), monospace;
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-muted);
+}
+
+/* hairline + focus utilities */
+.focus-ring {
+  outline: 2px solid transparent;
+  outline-offset: 2px;
+}
+.focus-ring:focus-visible {
+  outline: 2px solid var(--accent);
+}
+
+/* data grid hover */
+.row-hover:hover {
+  background: linear-gradient(0deg, rgba(14, 107, 99, 0.035), rgba(14, 107, 99, 0.035));
+}
+
+/* hide scrollbar where needed */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* striped score-meter track */
+.meter-track {
+  background-image: repeating-linear-gradient(
+    90deg,
+    var(--line) 0,
+    var(--line) 1px,
+    transparent 1px,
+    transparent 7px
+  );
+}
+
+/* internal-only / sensitive content — faint diagonal hatch so it reads as
+   "not for client eyes" at a glance (monthly-report internal/client split) */
+.hatch-internal {
+  background-image: repeating-linear-gradient(
+    -45deg,
+    rgba(168, 54, 47, 0.05) 0,
+    rgba(168, 54, 47, 0.05) 1px,
+    transparent 1px,
+    transparent 9px
+  );
+}
+
+/* big editorial display numerals */
+.numeral {
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+}
+
+/* link-y inline reference chips inside narratives */
+.ref-chip {
+  font-family: var(--font-mono), monospace;
+  font-size: 11px;
+  border: 1px solid var(--line-strong);
+  border-radius: 6px;
+  padding: 1px 6px;
+  color: var(--ink-muted);
+  background: var(--surface);
+  white-space: nowrap;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    transition-duration: 0.001ms !important;
+  }
+}

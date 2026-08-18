@@ -1,0 +1,68 @@
+# Acceptance Criteria — Platform & Compliance
+
+<!--
+  Output: Planning Agent (Fase 02). Kontrak uji untuk Implementation & Reviewer.
+  VERIFIABLE. Implementer menulis kode agar lolos ini; Reviewer mengecek. Jangan ubah kriteria agar lulus.
+-->
+
+```
+Unit  : Platform & Compliance
+Level : module
+```
+
+## Kriteria fungsional
+G1.
+  GIVEN pengguna dengan email di domain organisasi
+  WHEN  ia login via Google OAuth
+  THEN  sesi terbit, `APP_USER` dibuat/ditemukan, dan `GET /me` mengembalikan profil + peran.
+
+G2.
+  GIVEN pengguna dengan email di luar domain organisasi
+  WHEN  ia mencoba login
+  THEN  login ditolak (401) dan tidak ada `APP_USER` yang dibuat.
+
+G3.
+  GIVEN pengguna berperan `viewer`
+  WHEN  ia memanggil endpoint admin-only (mis. `GET /audit-logs`)
+  THEN  ditolak dengan 403.
+
+G4.
+  GIVEN request tanpa sesi/token valid
+  WHEN  memanggil endpoint apa pun selain `/auth/login`
+  THEN  ditolak dengan 401.
+
+G5.
+  GIVEN seorang aktor melakukan aksi material atas entitas sensitif (mis. verifikasi mapping, ubah scoring config, approve report)
+  WHEN  aksi tereksekusi
+  THEN  satu entri `AUDIT_LOG` tercatat berisi aktor, aksi, entity_type, entity_id, dan waktu.
+
+G6.
+  GIVEN entri `AUDIT_LOG` sudah ada
+  WHEN  ada upaya mengubah atau menghapusnya lewat API/aplikasi
+  THEN  operasi gagal (append-only ditegakkan).
+
+G7.
+  GIVEN admin memanggil `GET /audit-logs?entity=&actor=&page=`
+  WHEN  permintaan valid
+  THEN  daftar terpaginasi dikembalikan sesuai filter dengan `meta:{page,limit,total}`.
+
+## Kriteria non-fungsional
+- Pengecekan auth+RBAC menambah overhead minimal (tidak ada query N+1 untuk resolusi peran).
+- Audit log tertulis dalam transaksi yang sama dengan aksi (tidak ada aksi material tanpa audit).
+
+## Kriteria keamanan
+- Tidak ada secret (token/api key) yang muncul di response, log, atau pesan error mana pun.
+- `getSecret()` mengambil hanya dari secret manager/env; tidak ada credential tersimpan di tabel DB.
+- Field sensitif (PII talent, skor, lead assessment, insight) terenkripsi at rest; transport via TLS.
+- Pesan error tidak membocorkan PII atau detail internal sensitif.
+- Bila secret wajib tidak tersedia saat startup, aplikasi fail closed (boot gagal), bukan memakai default tidak aman.
+
+## Definition of Done
+- [ ] Semua kriteria fungsional di atas hijau
+- [ ] Lint & type-check lolos
+- [ ] Security scan lolos
+- [ ] Tidak ada secret di kode
+- [ ] Spec diperbarui jika implementasi menyimpang
+
+---
+*Nafanesia — Template Acceptance v1.0*

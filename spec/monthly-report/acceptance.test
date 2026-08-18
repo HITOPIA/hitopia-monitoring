@@ -1,0 +1,56 @@
+# Acceptance Criteria — Monthly Report
+
+<!--
+  Output: Planning Agent (Fase 02). Kontrak uji untuk Implementation & Reviewer. VERIFIABLE.
+-->
+
+```
+Unit  : Monthly Report
+Level : module
+```
+
+## Kriteria fungsional
+G1.
+  GIVEN konten approved (insight + skor) untuk periode `YYYY-MM`
+  WHEN  analyst memanggil `POST /reports/generate` `{ period, scope }`
+  THEN  sebuah `MONTHLY_REPORT` draft + `REPORT_ITEM` terbentuk dengan `scope` sesuai.
+
+G2.
+  GIVEN report dengan campuran item internal-only dan `client_visible=true`
+  WHEN  diekspor untuk audience client
+  THEN  hanya item `client_visible=true` yang muncul; item internal **tidak pernah** bocor ke deck client.
+
+G3.
+  GIVEN report belum `approved`
+  WHEN  `GET /reports/{id}/export` dipanggil
+  THEN  ditolak (409) — gate ekspor menegakkan approved-only.
+
+G4.
+  GIVEN report `approved`
+  WHEN  diekspor
+  THEN  file deck (PDF/pptx sesuai konfigurasi) dihasilkan, report ditandai `published`, dan ekspor tercatat di audit.
+
+G5.
+  GIVEN sebuah `REPORT_ITEM` tanpa penandaan client_visible
+  WHEN  ekspor client dijalankan
+  THEN  item itu dikecualikan (default fail-safe = internal).
+
+## Kriteria non-fungsional
+- Ekspor report approved menghasilkan deck yang konsisten (reproducible) untuk input yang sama.
+- Tiap item deck dapat ditelusuri ke insight/skor sumbernya.
+
+## Kriteria keamanan
+- Tidak ada konten internal/sensitif yang muncul di deck client (default tidak client-visible).
+- Ekspor hanya untuk report `approved`; tidak ada bypass gate.
+- Setiap ekspor tercatat di audit log; tidak ada pengiriman otomatis ke client.
+- Akses generate/export dibatasi RBAC.
+
+## Definition of Done
+- [ ] Semua kriteria fungsional di atas hijau
+- [ ] Lint & type-check lolos
+- [ ] Security scan lolos
+- [ ] Tidak ada secret di kode
+- [ ] Spec diperbarui jika implementasi menyimpang
+
+---
+*Nafanesia — Template Acceptance v1.0*

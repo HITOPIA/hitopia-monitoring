@@ -1,0 +1,388 @@
+// Foundation contract → Postgres schema.
+// Mirrors contract/foundation.frozen.md + lib/contract/types.ts (single source of truth).
+// Field names are snake_case to match the contract's JSON payload convention.
+// Money/hours/scores use Float to match the contract's `number` type (MVP); revisit
+// to Decimal/integer-cents for finance-grade accounting before client billing use.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../lib/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model AppUser {
+  id            String   @id @default(uuid())
+  email         String   @unique
+  name          String
+  image         String?
+  password_hash String? // bcrypt hash; null = cannot log in with password yet
+  role          String // admin | analyst | reviewer | viewer
+  status        String   @default("active") // active | disabled
+  created_at    DateTime @default(now())
+
+  @@map("app_user")
+}
+
+model Talent {
+  id                 String   @id @default(uuid())
+  full_name          String
+  email              String   @unique
+  talent_code        String?  @unique // immutable natural key from master Sheet (D2)
+  division           String
+  role               String
+  employment_type    String
+  status             String   @default("active") // active | inactive
+  primary_project_id String?
+  created_at         DateTime @default(now())
+  updated_at         DateTime @updatedAt
+
+  @@index([division])
+  @@index([status])
+  @@map("talent")
+}
+
+model IdentityMapping {
+  id                    String    @id @default(uuid())
+  talent_id             String
+  system                String // gsheet | jira | clockify
+  external_id           String
+  external_display_name String
+  confidence            String // high | medium | low
+  verified              Boolean   @default(false)
+  verified_by           String?
+  verified_at           DateTime?
+
+  @@index([talent_id])
+  @@index([system, external_id])
+  @@map("identity_mapping")
+}
+
+model Project {
+  id                 String  @id @default(uuid())
+  name               String
+  client_name        String
+  jira_project_key   String?
+  clockify_project_id String?
+  budget_amount      Float?
+  currency           String?
+
+  @@map("project")
+}
+
+model TalentProject {
+  id         String  @id @default(uuid())
+  talent_id  String
+  project_id String
+  period     String? // YYYY-MM
+
+  @@index([talent_id])
+  @@index([project_id])
+  @@map("talent_project")
+}
+
+model IngestionRun {
+  id               String    @id @default(uuid())
+  source           String // gsheet | jira | clockify
+  period           String // YYYY-MM
+  status           String // pending | running | success | partial | failed
+  started_at       DateTime  @default(now())
+  finished_at      DateTime?
+  records_ingested Int       @default(0)
+  quality_summary  Json?
+
+  @@index([source, period])
+  @@index([started_at])
+  @@map("ingestion_run")
+}
+
+model DataQualityFlag {
+  id               String  @id @default(uuid())
+  ingestion_run_id String
+  talent_id        String?
+  severity         String // info | warn | block
+  code             String
+  message          String
+
+  @@index([ingestion_run_id])
+  @@map("data_quality_flag")
+}
+
+model UtilizationRecord {
+  id              String @id @default(uuid())
+  talent_id       String
+  period          String
+  project_id      String?
+  tracked_hours   Float
+  productive_hours Float
+  target_hours    Float
+  overtime_hours  Float
+  offhours_hours  Float  @default(0) // before+after+weekend hours (burnout signal)
+  source_run_id   String
+
+  @@unique([talent_id, period])
+  @@index([period])
+  @@map("utilization_record")
+}
+
+model DeliveryRecord {
+  id                String @id @default(uuid())
+  talent_id         String
+  period            String
+  tickets_committed Int
+  tickets_completed Int
+  tickets_overdue   Int
+  tickets_reopened  Int
+  tickets_verified   Int   @default(0) // tickets this talent moved into verify/done (changelog author)
+  avg_aging_days    Float
+  avg_cycle_days     Float @default(0) // created → resolved cycle time
+  bugs_count         Int   @default(0)
+  status_transitions Int   @default(0)
+  source_run_id     String
+
+  @@unique([talent_id, period])
+  @@index([period])
+  @@map("delivery_record")
+}
+
+// Per-ticket evidence behind a DeliveryRecord — lets a reviewer trace a delivery
+// score to the exact Jira issues that produced it. Rebuilt each Jira ingestion run.
+model DeliveryTicket {
+  id              String  @id @default(uuid())
+  talent_id       String
+  period          String
+  issue_key       String
+  summary         String?
+  status          String
+  status_category String // done | in_progress | to_do
+  completed       Boolean @default(false)
+  overdue         Boolean @default(false)
+  created         String? // ISO date from Jira
+  resolved_date   String?
+  due_date        String?
+  aging_days      Float   @default(0)
+  issue_type      String?
+  is_bug          Boolean @default(false)
+  reopen_count    Int     @default(0)
+  transitions     Int     @default(0)
+  credit          String? // assigned | verified
+  source_run_id   String
+
+  @@index([talent_id, period])
+  @@index([period])
+  @@map("delivery_ticket")
+}
+
+// Per-entry evidence behind a UtilizationRecord — the individual Clockify time
+// entries (with any Jira key in the description) summed into tracked hours.
+model TimeEntry {
+  id            String  @id @default(uuid())
+  talent_id     String
+  period        String
+  entry_date    String // YYYY-MM-DD
+  description   String?
+  ticket_ref    String? // Jira key parsed from the description, if any
+  project_name  String?
+  duration_sec  Int     @default(0)
+  start_at      String? // ISO datetime of entry start
+  end_at        String? // ISO datetime of entry end
+  clockify_entry_id String?
+  offhours_kind String? // before | after | weekend
+  source_run_id String
+
+  @@index([talent_id, period])
+  @@index([period])
+  @@map("time_entry")
+}
+
+model CostRate {
+  id             String @id @default(uuid())
+  scope          String // talent | role
+  ref_id         String // talent_id or role name
+  rate_amount    Float
+  currency       String
+  effective_from String // YYYY-MM-DD
+  source         String
+
+  @@index([scope, ref_id])
+  @@map("cost_rate")
+}
+
+model BudgetBurn {
+  id                 String    @id @default(uuid())
+  talent_id          String
+  period             String
+  project_id         String?
+  cost_incurred      Float?
+  budget_allocated   Float?
+  burn_pct           Float?
+  cost_rate_id       String?
+  computed_at        DateTime?
+  unavailable_reason String?
+
+  @@unique([talent_id, period])
+  @@index([period])
+  @@map("budget_burn")
+}
+
+model LeadAssessment {
+  id               String   @id @default(uuid())
+  talent_id        String
+  period           String
+  lead_ref         String
+  rubric_scores    Json
+  normalized_score Float
+  comment          String?
+  submitted_by     String
+  submitted_at     DateTime @default(now())
+
+  @@index([talent_id, period])
+  @@index([period])
+  @@map("lead_assessment")
+}
+
+model ScoringConfig {
+  id             String   @id @default(uuid())
+  version        Int      @unique
+  weights        Json
+  thresholds     Json
+  profiles       Json? // role-group → { weights, delivery_source }
+  role_groups    Json? // role string → group name
+  effective_from String
+  created_by     String
+  created_at     DateTime @default(now())
+  note           String?
+
+  @@map("scoring_config")
+}
+
+model PerformanceScore {
+  id                    String   @id @default(uuid())
+  talent_id             String
+  period                String
+  delivery_score        Float
+  utilization_score     Float
+  efficiency_score      Float
+  overtime_health_score Float
+  lead_assessment_score Float
+  total_score           Float
+  flag                  String // low | needs_review | healthy
+  scoring_config_id     String
+  computed_at           DateTime @default(now())
+  scorable              Boolean  @default(true)
+  not_scorable_reason   String?
+
+  @@unique([talent_id, period])
+  @@index([period, flag])
+  @@map("performance_score")
+}
+
+model Insight {
+  id              String   @id @default(uuid())
+  talent_id       String
+  period          String
+  diagnosis       Json
+  narrative       String
+  summary         String?
+  severity        String? // strength | watch | risk
+  confidence      Float?  // 0..1
+  recommendations Json
+  source_refs     Json
+  model_id        String
+  status          String // generated | in_review | approved | rejected
+  generated_at    DateTime @default(now())
+
+  @@index([talent_id, period])
+  @@index([period, status])
+  @@map("insight")
+}
+
+model MonthlyReport {
+  id           String   @id @default(uuid())
+  period       String
+  scope        Json
+  status       String // draft | in_review | approved | published
+  audience     String // internal | client
+  exec_summary String?
+  file_ref     String?
+  generated_by String
+  created_at   DateTime @default(now())
+
+  @@index([period, status])
+  @@map("monthly_report")
+}
+
+model ReportItem {
+  id               String  @id @default(uuid())
+  monthly_report_id String
+  talent_id        String?
+  insight_id       String?
+  section          String
+  content          Json
+  client_visible   Boolean @default(false)
+
+  @@index([monthly_report_id])
+  @@map("report_item")
+}
+
+model Approval {
+  id           String   @id @default(uuid())
+  subject_type String // insight | monthly_report
+  subject_id   String
+  reviewer_id  String
+  decision     String // approve | reject | request_changes
+  comment      String?
+  decided_at   DateTime @default(now())
+
+  @@index([subject_id])
+  @@map("approval")
+}
+
+model Job {
+  id          String    @id @default(uuid())
+  type        String // insight_generation | ingestion | report_export
+  status      String // queued | running | partial | succeeded | failed | cancelled
+  period      String?
+  progress    Json?
+  result_refs Json?
+  errors      Json?
+  created_by  String?
+  started_at  DateTime  @default(now())
+  finished_at DateTime?
+
+  @@index([type, status])
+  @@map("job")
+}
+
+model AuditLog {
+  id            String   @id @default(uuid())
+  actor_user_id String?
+  action        String
+  entity_type   String
+  entity_id     String?
+  metadata      Json?
+  ip            String?
+  created_at    DateTime @default(now())
+
+  @@index([entity_type])
+  @@index([actor_user_id])
+  @@index([created_at])
+  @@map("audit_log")
+}
+
+// Non-secret per-source connection config + last health check (Settings → Sources).
+// Secrets (tokens/keys) never live here — only via env/secret manager (R8).
+model SourceSetting {
+  id           String    @id @default(uuid())
+  source       String    @unique // gsheet | jira | clockify
+  config       Json
+  updated_by   String?
+  updated_at   DateTime  @updatedAt
+  last_checked DateTime?
+  last_status  String?
+  last_error   String?
+
+  @@map("source_setting")
+}

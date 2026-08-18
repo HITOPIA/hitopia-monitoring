@@ -1,0 +1,71 @@
+# Acceptance Criteria — Metrics & Scoring
+
+<!--
+  Output: Planning Agent (Fase 02). Kontrak uji untuk Implementation & Reviewer. VERIFIABLE.
+-->
+
+```
+Unit  : Metrics & Scoring
+Level : module
+```
+
+## Kriteria fungsional
+G1.
+  GIVEN `UTILIZATION_RECORD` & `DELIVERY_RECORD` untuk talent skorable di periode `YYYY-MM`
+  WHEN  metrik dihitung
+  THEN  `GET /talents/{id}/metrics?period=` mengembalikan utilization, delivery, dan budget_burn yang konsisten dengan data sumber.
+
+G2.
+  GIVEN cost rate tidak tersedia untuk seorang talent
+  WHEN  budget burn dihitung
+  THEN  budget burn ditandai "tidak tersedia" (bukan 0) dan Efficiency tidak menghukum talent karena data hilang.
+
+G3.
+  GIVEN lead mengirim `POST /lead-assessments` dengan rubric
+  WHEN  diproses
+  THEN  `LEAD_ASSESSMENT.normalized_score` berada di rentang 0–100 dan tersimpan untuk talent/periode itu.
+
+G4.
+  GIVEN `SCORING_CONFIG` aktif dengan bobot default (35/25/20/10/10)
+  WHEN  skor hybrid dihitung
+  THEN  `PERFORMANCE_SCORE.total_score` = jumlah berbobot sub-skor, menyimpan `scoring_config_id`, dan `flag` sesuai threshold.
+
+G5.
+  GIVEN admin memanggil `PUT /scoring-config` dengan bobot/threshold baru
+  WHEN  permintaan valid (bobot berjumlah 100)
+  THEN  sebuah **versi baru** `SCORING_CONFIG` dibuat dan skor yang sudah ada **tidak berubah** (tidak retroaktif).
+
+G6.
+  GIVEN bobot di `PUT /scoring-config` tidak berjumlah 100 (atau threshold tidak valid)
+  WHEN  permintaan diproses
+  THEN  ditolak dengan 422 dan tidak ada versi baru dibuat.
+
+G7.
+  GIVEN seorang talent ditandai tidak-skorable oleh upstream
+  WHEN  scoring periode berjalan
+  THEN  tidak ada `PERFORMANCE_SCORE` dibuat untuk talent itu dan alasannya tersedia.
+
+G8.
+  GIVEN overtime tinggi tetapi output (delivery) rendah
+  WHEN  flag ditetapkan
+  THEN  talent ditandai mismatch (Needs review), bukan Healthy.
+
+## Kriteria non-fungsional
+- Skor deterministik: input + `scoring_config` sama → hasil sama (reproducible).
+- Setiap `PERFORMANCE_SCORE` dapat ditelusuri ke record sumber + versi config (source_refs).
+
+## Kriteria keamanan
+- `PUT /scoring-config` admin-only; perubahan tercatat di audit log.
+- Akses skor & lead assessment dibatasi RBAC; tanpa peran → 403.
+- Data performa individu terenkripsi at rest; tidak ada PII bocor di response/log.
+- Tidak ada keputusan otomatis yang merugikan individu tanpa review manusia (skor = decision-support).
+
+## Definition of Done
+- [ ] Semua kriteria fungsional di atas hijau
+- [ ] Lint & type-check lolos
+- [ ] Security scan lolos
+- [ ] Tidak ada secret di kode
+- [ ] Spec diperbarui jika implementasi menyimpang
+
+---
+*Nafanesia — Template Acceptance v1.0*

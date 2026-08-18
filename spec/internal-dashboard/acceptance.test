@@ -1,0 +1,56 @@
+# Acceptance Criteria — Internal Dashboard
+
+<!--
+  Output: Planning Agent (Fase 02). Kontrak uji untuk Implementation & Reviewer. VERIFIABLE.
+-->
+
+```
+Unit  : Internal Dashboard
+Level : module
+```
+
+## Kriteria fungsional
+G1.
+  GIVEN data skor/metrik/insight tersedia untuk periode `YYYY-MM`
+  WHEN  pengguna internal membuka dashboard
+  THEN  satu view menampilkan daftar talent dengan skor total, flag, dan metrik ringkas.
+
+G2.
+  GIVEN daftar talent
+  WHEN  pengguna memfilter/sort per periode/flag/divisi/project dan menavigasi halaman
+  THEN  hasil sesuai filter dengan pagination yang benar.
+
+G3.
+  GIVEN seorang talent dipilih
+  WHEN  membuka detail
+  THEN  sub-skor, metrik sumber, budget burn, dan insight terkait tampil, dengan drill-down menelusuri ke data sumber (traceability).
+
+G4.
+  GIVEN seorang talent tidak-skorable atau datanya ber-flag `block`
+  WHEN  ditampilkan
+  THEN  penanda kualitas data/tidak-skorable muncul dan skor menyesatkan tidak dirender.
+
+G5.
+  GIVEN angka pada dashboard
+  WHEN  dibandingkan dengan endpoint sumber (`/scores`, `/talents/{id}/metrics`)
+  THEN  nilainya konsisten (dashboard tidak menghitung ulang berbeda).
+
+## Kriteria non-fungsional
+- View periode untuk skala ratusan talent memuat dalam waktu wajar (target disepakati saat build).
+- State kosong/error (ingestion gagal, periode tanpa data) ditangani tanpa menampilkan nol palsu.
+
+## Kriteria keamanan
+- Dashboard internal-only; data performa individu hanya tampil untuk peran berwenang (RBAC ditegakkan server-side).
+- Tanpa auth → 401; tanpa peran memadai → data sensitif tidak dikirim (403/empty sesuai kebijakan).
+- Akses tampilan data sensitif tercatat di audit log.
+- Tidak ada jalur dari dashboard ke ekspor client tanpa approval; tidak ada konten client di view internal yang bocor sebaliknya.
+
+## Definition of Done
+- [ ] Semua kriteria fungsional di atas hijau
+- [ ] Lint & type-check lolos
+- [ ] Security scan lolos
+- [ ] Tidak ada secret di kode
+- [ ] Spec diperbarui jika implementasi menyimpang
+
+---
+*Nafanesia — Template Acceptance v1.0*

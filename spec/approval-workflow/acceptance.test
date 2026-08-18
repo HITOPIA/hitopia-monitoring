@@ -1,0 +1,60 @@
+# Acceptance Criteria — Approval Workflow
+
+<!--
+  Output: Planning Agent (Fase 02). Kontrak uji untuk Implementation & Reviewer. VERIFIABLE.
+-->
+
+```
+Unit  : Approval Workflow
+Level : module
+```
+
+## Kriteria fungsional
+G1.
+  GIVEN sebuah `MONTHLY_REPORT` berstatus `draft`
+  WHEN  analyst memanggil `POST /reports/{id}/submit`
+  THEN  status menjadi `in_review`.
+
+G2.
+  GIVEN report `in_review`
+  WHEN  reviewer memanggil `POST /reports/{id}/approve`
+  THEN  status menjadi `approved` dan satu `APPROVAL` (decision `approve`, reviewer_id, decided_at) tercatat.
+
+G3.
+  GIVEN report `in_review`
+  WHEN  reviewer memanggil `POST /reports/{id}/reject` tanpa `comment`
+  THEN  ditolak dengan 422 (komentar wajib); dengan komentar → status dapat diperbaiki + `APPROVAL` (decision `reject`/`request_changes`).
+
+G4.
+  GIVEN report yang belum `approved`
+  WHEN  ada upaya ekspor/penggunaan client-facing
+  THEN  diblokir (gate ditegakkan server-side; lihat monthly-report).
+
+G5.
+  GIVEN transisi status tidak valid (mis. approve atas `draft` atau `published`)
+  WHEN  diminta
+  THEN  ditolak dengan 409.
+
+G6.
+  GIVEN seorang non-reviewer (mis. viewer/analyst tanpa hak approve)
+  WHEN  ia memanggil approve/reject
+  THEN  ditolak dengan 403.
+
+## Kriteria non-fungsional
+- Satu-satunya jalur ke client-facing adalah lewat `approved` (tidak ada bypass).
+- Riwayat keputusan per subjek terurut & dapat ditelusuri.
+
+## Kriteria keamanan
+- Approve/reject dibatasi peran reviewer/admin; pemisahan tugas ditegakkan sesuai kebijakan.
+- Setiap keputusan `APPROVAL` immutable dan tercatat di audit log (siapa, kapan, alasan).
+- Tidak ada cara mengekspor konten client-facing tanpa approval eksplisit.
+
+## Definition of Done
+- [ ] Semua kriteria fungsional di atas hijau
+- [ ] Lint & type-check lolos
+- [ ] Security scan lolos
+- [ ] Tidak ada secret di kode
+- [ ] Spec diperbarui jika implementasi menyimpang
+
+---
+*Nafanesia — Template Acceptance v1.0*

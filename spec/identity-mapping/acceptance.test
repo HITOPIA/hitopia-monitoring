@@ -1,0 +1,60 @@
+# Acceptance Criteria — Identity Mapping
+
+<!--
+  Output: Planning Agent (Fase 02). Kontrak uji untuk Implementation & Reviewer. VERIFIABLE.
+-->
+
+```
+Unit  : Identity Mapping
+Level : module
+```
+
+## Kriteria fungsional
+G1.
+  GIVEN master talent dari Google Sheet untuk periode `YYYY-MM`
+  WHEN  registry dibangun
+  THEN  `TALENT` kanonik terbentuk tanpa duplikat dan `GET /talents` mengembalikannya.
+
+G2.
+  GIVEN seorang talent dengan join key yang cocok persis di Jira & Clockify
+  WHEN  resolver berjalan
+  THEN  `IDENTITY_MAPPING` terbentuk dengan `confidence=high`.
+
+G3.
+  GIVEN seorang talent tanpa kecocokan pasti / dengan konflik
+  WHEN  resolver berjalan
+  THEN  mapping berstatus `unresolved` (confidence `medium|low`), tidak auto-merge, dan muncul di `GET /mappings/unresolved`.
+
+G4.
+  GIVEN sebuah mapping `unresolved`
+  WHEN  seorang analyst/admin memanggil `POST /mappings/{id}/verify` dengan `external_id` yang benar
+  THEN  mapping terkunci (`verified=true`, `verified_by`, `verified_at`) dan entri audit tercatat.
+
+G5.
+  GIVEN seorang talent tanpa mapping terverifikasi yang memadai untuk periode
+  WHEN  data diserahkan ke scoring
+  THEN  talent tersebut ditandai **tidak-skorable** untuk periode itu.
+
+G6.
+  GIVEN mapping berubah antar periode
+  WHEN  metrik periode lama ditelusuri
+  THEN  metrik tersebut tetap menunjuk mapping yang berlaku saat periode itu (versioning).
+
+## Kriteria non-fungsional
+- Tidak ada auto-merge untuk confidence `medium`/`low`; keputusan tinggi-risiko selalu lewat manusia.
+- Resolusi registry untuk skala ratusan talent selesai dalam waktu wajar.
+
+## Kriteria keamanan
+- Akses `GET /talents*` & registry dibatasi RBAC; tanpa auth → 401, tanpa peran → 403.
+- PII talent terenkripsi at rest; response meminimalkan field sensitif.
+- Setiap akses & verifikasi mapping tercatat di audit log; tidak ada PII di log/error.
+
+## Definition of Done
+- [ ] Semua kriteria fungsional di atas hijau
+- [ ] Lint & type-check lolos
+- [ ] Security scan lolos
+- [ ] Tidak ada secret di kode
+- [ ] Spec diperbarui jika implementasi menyimpang
+
+---
+*Nafanesia — Template Acceptance v1.0*
