@@ -1,0 +1,12 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "rootDirectory": "prototype",
+  "framework": "nextjs",
+  "buildCommand": "npm run build",
+  "installCommand": "npm install",
+  "outputDirectory": ".next",
+  "env": {
+    "AUTH_DEV_LOGIN": "false",
+    "AUTH_ALLOWED_DOMAIN": "hitopia.id"
+  }
+}
