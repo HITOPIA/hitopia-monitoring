@@ -13,7 +13,16 @@ function createClient(): PrismaClient {
   if (!connectionString) {
     throw new Error("DATABASE_URL is not set — refusing to start (fail-closed, R8).");
   }
-  const adapter = new PrismaPg({ connectionString });
+  // SSL: Supabase (and most managed Postgres) require SSL but use self-signed
+  // certificate chains. `pg` rejects self-signed certs by default, so we set
+  // `rejectUnauthorized: false` for those. Local Docker Postgres has no SSL
+  // layer — the `pg` client treats this as a no-op when the server doesn't
+  // negotiate TLS. So one config works for both dev (localhost) and prod
+  // (Supabase).
+  const adapter = new PrismaPg({
+    connectionString,
+    ssl: { rejectUnauthorized: false },
+  });
   return new PrismaClient({ adapter });
 }
 
