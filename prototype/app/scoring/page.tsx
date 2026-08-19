@@ -271,7 +271,7 @@ function ConfigEditor({ base, mode = "version", onSaved }: { base: ConfigEditorB
             {WEIGHT_KEYS.map((w) => (
               <label key={w.key} className="flex items-center gap-3">
                 <span className="w-28 text-[13px] text-ink-soft">{w.label}</span>
-                <input type="range" min={0} max={60} value={weights[w.key]} onChange={(e) => setWeights((s) => ({ ...s, [w.key]: Number(e.target.value) }))} className="flex-1 accent-[var(--accent)]" />
+                <input type="range" min={0} max={100} value={weights[w.key]} onChange={(e) => setWeights((s) => ({ ...s, [w.key]: Number(e.target.value) }))} className="flex-1 accent-[var(--accent)]" />
                 <span className="numeral w-10 text-right text-[13px] text-ink">{weights[w.key]}%</span>
               </label>
             ))}

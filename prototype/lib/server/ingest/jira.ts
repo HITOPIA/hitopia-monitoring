@@ -121,9 +121,34 @@ export async function ingestJira(period: string, runId: string): Promise<IngestS
     const resolved = it.fields.resolutiondate || null;
     const due = it.fields.duedate || null;
     const statusDone = it.fields.status?.statusCategory?.key === "done";
+    // Definition of Done (DoD) — per CEO 2026-08-18 (updated 2026-08-18 session 2 & 3).
+    // Whitelist of Jira status names that count as "completed" for the green
+    // badge + tickets_completed. Anything not listed defaults to NOT done;
+    // new statuses discovered later can be added to DOD_DONE_STATUSES below.
+    //   Approved                 → 0
+    //   Closed                   → 1
+    //   Resolved                 → 1
+    //   Resolved with notes      → 1
+    //   Cannot be Test           → 1  (NEW — was 0, CEO updated)
+    //   Released                 → 1  (NEW — added by CEO)
+    //   Verified + Done          → 1  (NEW — added by CEO; literal status name match)
+    //   Done + Bug               → 1  (NEW — added by CEO for bug-ticket-specific done states)
+    //   Waiting for Feedback     → 0
+    //   Ready for Testing        → 0
+    //   In Progress              → 0
+    //   Cancelled                → 0
+    const DOD_DONE_STATUSES = new Set<string>([
+      "Done", "Closed", "Resolved", "Resolved with notes",
+      "Cannot be Test", "Released", "Verified + Done",
+      "Done + Bug",
+    ]);
+    const currentStatusName = (it.fields.status?.name ?? "").trim();
     const completedInPeriod = !!(resolved && Date.parse(resolved) >= startMs && Date.parse(resolved) < nextMs);
+    const completedByStatus = DOD_DONE_STATUSES.has(currentStatusName);
+    // Final completed = resolutiondate in period (legacy rule, kept) OR current status in DoD whitelist (new rule)
+    const completed = completedInPeriod || completedByStatus;
     const overdue = !!(due && Date.parse(due) < nextMs && !statusDone);
-    const aging = completedInPeriod && it.fields.created ? Math.round(daysBetween(it.fields.created, resolved!) * 10) / 10 : 0;
+    const aging = completed && it.fields.created ? Math.round(daysBetween(it.fields.created, resolved!) * 10) / 10 : 0;
     const isBug = /bug/i.test(it.fields.issuetype?.name || "");
 
     // mine changelog for reopens, transition volume, and verifiers
@@ -149,7 +174,7 @@ export async function ingestJira(period: string, runId: string): Promise<IngestS
     // assignee (delivery_source="assigned") credit
     const rec = agg.get(assignee.id) ?? blank();
     rec.committed++;
-    if (completedInPeriod) {
+    if (completed) {
       rec.completed++;
       if (it.fields.created) {
         rec.agingSum += daysBetween(it.fields.created, resolved!);
@@ -167,7 +192,7 @@ export async function ingestJira(period: string, runId: string): Promise<IngestS
       summary: it.fields.summary ?? null,
       status: it.fields.status?.name ?? "",
       status_category: it.fields.status?.statusCategory?.key ?? "",
-      completed: completedInPeriod,
+      completed,
       overdue,
       created: it.fields.created ?? null,
       resolved_date: resolved,

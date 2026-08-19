@@ -100,9 +100,12 @@ export function computeDelivery(d?: DeliveryRecord, source: DeliverySource = "as
   const completion = d.tickets_completed / d.tickets_committed;
   const overdue = d.tickets_overdue * 4;
   const reopened = d.tickets_reopened * 5;
-  const aging = Math.max(0, d.avg_aging_days - 5) * 2.2;
+  // FORMULA A (experiment 2026-08-18): aging penalty removed per CEO request —
+  // Hitopia/Prodia uses multi-sprint "umbrella tickets" where long aging is by
+  // design, not reflective of effort. See [[hitopia-delivery-formula-redesign-backlog]].
+  // To restore: const aging = Math.max(0, d.avg_aging_days - 5) * 2.2;
   const bugs = Math.min(d.bugs_count ?? 0, 5) * 1.2; // capped: open defects in scope
-  return clamp(completion * 100 - overdue - reopened - aging - bugs);
+  return clamp(completion * 100 - overdue - reopened - bugs);
 }
 
 export function computeEfficiency(
@@ -201,7 +204,11 @@ export function computeScore(
   ];
 
   const total_score = r1(breakdown.reduce((s, b) => s + b.weighted, 0));
-  const redCount = breakdown.filter((b) => b.raw < 50).length;
+  // redCount: only consider sub-scores that actually contribute to the total
+  // (weight > 0). Otherwise Formula A (delivery=100%, others=0%) always shows
+  // redCount=2 because util=0/eff=0 (no Clockify data), dragging healthy
+  // talents down to "needs_review" — see [[hitopia-delivery-formula-redesign-backlog]].
+  const redCount = breakdown.filter((b) => b.weight > 0 && b.raw < 50).length;
 
   let flag: Flag;
   if (total_score < cfg.thresholds.low) flag = "low";
